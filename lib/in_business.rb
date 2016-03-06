@@ -5,7 +5,7 @@ module InBusiness
 
   @holidays = []
   @hours = OpenStruct.new
-  
+
   def self.holidays
     @holidays
   end
@@ -30,19 +30,14 @@ module InBusiness
   end
 
   def self.open?(datetime=DateTime.now)
-    
+
     # If this is included in the list of holidays, return false
-    return false if is_holiday? datetime
+    return false if is_holiday?(datetime)
 
-    # If we don't know the opening hours for datetime's day, assume we're closed
-    return false unless hours.send(days[datetime.wday.to_s].to_sym)
+    # Check if we're open
+    return true if open_on?(datetime.wday, datetime.strftime("%H:%M"))
 
-    # We have opening hours, so check if the current time is within them
-    if !hours.send(days[datetime.wday.to_s].to_sym).include? datetime.strftime("%H:%M")
-      return false
-    end
-
-    true # It's not not open, so it must be open ;)
+    false # It's not open, so it must be closed ;)
   end
 
   def self.closed?(datetime=DateTime.now)
@@ -66,4 +61,47 @@ module InBusiness
     }
   end
 
+  private
+
+  def self.open_on?(wday, hour_min_string)
+    # Check if we're open according to todays opening hours
+    day_string    = days[wday.to_s]
+    opening_hours = @hours.send(day_string)
+
+    # There are opening hours for today
+    if opening_hours
+      if opening_hours.begin < opening_hours.end
+        # Normal hours
+        return true if opening_hours.include? hour_min_string
+      else
+        # Overnight hours
+        return true if skewed_hours(opening_hours).include? hour_min_string
+      end
+    end
+
+    # Get opening hours for yesterday
+    day_string    = days[((wday-1)%7).to_s]
+    opening_hours = @hours.send(day_string)
+
+    # Use the opening hours for yesterday if present and overnight
+    if opening_hours
+      if opening_hours.begin >= opening_hours.end
+        # Overnight hours
+        hour_min_string = add_24_hours_to_string(hour_min_string)
+        return true if skewed_hours(opening_hours).include? hour_min_string
+      end
+    end
+    return false
+  end
+
+  def self.skewed_hours(opening_hours)
+    opening_hours.begin..add_24_hours_to_string(opening_hours.end)
+  end
+
+  def self.add_24_hours_to_string(hour_min_string)
+    hour = Integer(hour_min_string[0..1])
+    hour += 24
+    min  = hour_min_string[-2..-1]
+    "#{hour}:#{min}"
+  end
 end

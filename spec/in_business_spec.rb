@@ -5,7 +5,7 @@ def parse_datetime_in_london(string)
 end
 
 describe InBusiness do
-    
+
   after(:each) do
     InBusiness.reset # Clear the settings so they can be set for this example
   end
@@ -128,7 +128,7 @@ describe InBusiness do
   end
 
   context "with hours set" do
-    before do 
+    before do
       InBusiness.hours.monday = "09:00".."20:00"
     end
 
@@ -149,6 +149,36 @@ describe InBusiness do
       it "returns false for a day that hasn't had hours set" do
         Timecop.freeze(parse_datetime_in_london("9th July 2013 10:00")) do
           InBusiness.open?(DateTime.now).should be_false
+        end
+      end
+
+      context "overnight hours" do
+        before do
+          InBusiness.hours.monday = "13:00".."05:00"
+        end
+
+        it "returns true for a time on monday night" do
+          Timecop.freeze(parse_datetime_in_london("8th July 2013 22:00")) do
+            InBusiness.should be_open(DateTime.now)
+          end
+        end
+
+        it "returns true for a time on tuesday morning" do
+          Timecop.freeze(parse_datetime_in_london("9th July 2013 04:00")) do
+            InBusiness.should be_open(DateTime.now)
+          end
+        end
+
+        it "returns false before" do
+          Timecop.freeze(parse_datetime_in_london("8th July 2013 10:00")) do
+            InBusiness.should_not be_open(DateTime.now)
+          end
+        end
+
+        it "returns false after" do
+          Timecop.freeze(parse_datetime_in_london("9th July 2013 06:00")) do
+            InBusiness.should_not be_open(DateTime.now)
+          end
         end
       end
 
